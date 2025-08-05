@@ -1,0 +1,3 @@
+[33m3163683[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Security fix: Remove API key from code and use environment variables
+[33mb5e1521[m Enhanced AI prompt for better weekly report enhancement with improved instructions and examples
+[33m93e30de[m initial commit

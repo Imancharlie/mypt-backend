@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report.title }}</title>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">{{ report.title }}</h1>
+        <h2>Industrial Practical Training Report</h2>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">Student Information</h3>
+        <table>
+            <tr>
+                <td><strong>Name:</strong></td>
+                <td>{{ user.get_full_name }}</td>
+            </tr>
+            <tr>
+                <td><strong>Student ID:</strong></td>
+                <td>{{ profile.student_id }}</td>
+            </tr>
+            <tr>
+                <td><strong>Program:</strong></td>
+                <td>{{ profile.get_program_display }}</td>
+            </tr>
+            <tr>
+                <td><strong>Company:</strong></td>
+                <td>{{ company.name }}</td>
+            </tr>
+            <tr>
+                <td><strong>Department:</strong></td>
+                <td>{{ profile.department }}</td>
+            </tr>
+            <tr>
+                <td><strong>Supervisor:</strong></td>
+                <td>{{ profile.supervisor_name }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if report.introduction %}
+    <div class="section">
+        <h3 class="section-title">Introduction</h3>
+        <p>{{ report.introduction }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.company_overview %}
+    <div class="section">
+        <h3 class="section-title">Company Overview</h3>
+        <p>{{ report.company_overview }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.training_objectives %}
+    <div class="section">
+        <h3 class="section-title">Training Objectives</h3>
+        <p>{{ report.training_objectives }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.methodology %}
+    <div class="section">
+        <h3 class="section-title">Methodology</h3>
+        <p>{{ report.methodology }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.achievements %}
+    <div class="section">
+        <h3 class="section-title">Achievements</h3>
+        <p>{{ report.achievements }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.challenges_faced %}
+    <div class="section">
+        <h3 class="section-title">Challenges Faced</h3>
+        <p>{{ report.challenges_faced }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.skills_acquired %}
+    <div class="section">
+        <h3 class="section-title">Skills Acquired</h3>
+        <p>{{ report.skills_acquired }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.recommendations %}
+    <div class="section">
+        <h3 class="section-title">Recommendations</h3>
+        <p>{{ report.recommendations }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.conclusion %}
+    <div class="section">
+        <h3 class="section-title">Conclusion</h3>
+        <p>{{ report.conclusion }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.acknowledgments %}
+    <div class="section">
+        <h3 class="section-title">Acknowledgments</h3>
+        <p>{{ report.acknowledgments }}</p>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h3 class="section-title">Report Summary</h3>
+        <p><strong>Status:</strong> {{ report.get_status_display }}</p>
+        <p><strong>Word Count:</strong> {{ report.word_count }} words</p>
+        {% if report.is_ai_enhanced %}
+        <p><em>This report has been enhanced using AI assistance.</em></p>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        <p>Generated on {{ export_date }}</p>
+        <p>Industrial Practical Training Report Generator</p>
+    </div>
+</body>
+</html> 

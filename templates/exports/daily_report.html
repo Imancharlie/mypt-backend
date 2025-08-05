@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Training Report - {{ report.date }}</title>
+</head>
+<body>
+    <div class="header">
+        <h1>DAILY TRAINING REPORT</h1>
+        <h2>{{ report.date|date:"F d, Y" }}</h2>
+        <p>{{ report.date|date:"l" }}</p>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">Student Information</h3>
+        <table>
+            <tr>
+                <td><strong>Name:</strong></td>
+                <td>{{ student.get_full_name }}</td>
+            </tr>
+            <tr>
+                <td><strong>Student ID:</strong></td>
+                <td>{{ profile.student_id }}</td>
+            </tr>
+            <tr>
+                <td><strong>Program:</strong></td>
+                <td>{{ profile.get_program_display }}</td>
+            </tr>
+            <tr>
+                <td><strong>Company:</strong></td>
+                <td>{{ company.name }}</td>
+            </tr>
+            <tr>
+                <td><strong>Department:</strong></td>
+                <td>{{ profile.department }}</td>
+            </tr>
+            <tr>
+                <td><strong>Supervisor:</strong></td>
+                <td>{{ profile.supervisor_name }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">Daily Activities</h3>
+        <p>{{ report.description }}</p>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">Hours Spent</h3>
+        <p><strong>Total hours worked:</strong> {{ report.hours_spent }} hours</p>
+    </div>
+
+    {% if report.skills_learned %}
+    <div class="section">
+        <h3 class="section-title">Skills Learned</h3>
+        <p>{{ report.skills_learned }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.challenges_faced %}
+    <div class="section">
+        <h3 class="section-title">Challenges Faced</h3>
+        <p>{{ report.challenges_faced }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.supervisor_feedback %}
+    <div class="section">
+        <h3 class="section-title">Supervisor Feedback</h3>
+        <p>{{ report.supervisor_feedback }}</p>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h3 class="section-title">Summary</h3>
+        <p><strong>Week Number:</strong> {{ report.week_number }}</p>
+        <p><strong>Status:</strong> {% if report.is_submitted %}Submitted{% else %}Draft{% endif %}</p>
+    </div>
+
+    <div class="footer">
+        <p>Generated on {{ export_date }}</p>
+        <p>Industrial Practical Training Report Generator</p>
+    </div>
+</body>
+</html> 
