@@ -12,10 +12,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
-            # Get the user from the serializer's validated data
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid()
-            user = serializer.user
+            # Get the user from the request data
+            username = request.data.get('username')
+            user = User.objects.get(username=username)
             # Safely check if user has complete profile
             has_complete_profile = False
             try:

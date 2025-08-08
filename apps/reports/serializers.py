@@ -230,15 +230,32 @@ class WeeklyReportCreateSerializer(serializers.ModelSerializer):
                 
                 # Only update operations if operations_data is provided
                 if operations_data:
-                # Remove existing operations if updating main job
-                if not main_job_created:
-                    main_job.operations.all().delete()
-                # Create operations
-                for operation_data in operations_data:
-                    MainJobOperation.objects.create(
-                        main_job=main_job,
-                        **operation_data
-                    )
+                    # Remove existing operations if updating main job
+                    if not main_job_created:
+                        # Audit existing operations before deletion
+                        try:
+                            from apps.core.audit import log_change
+                            ops_snapshot = [
+                                {
+                                    'id': op.id,
+                                    'main_job_id': op.main_job_id,
+                                    'step_number': op.step_number,
+                                    'operation_description': op.operation_description,
+                                    'tools_used': op.tools_used,
+                                }
+                                for op in main_job.operations.all()
+                            ]
+                            if ops_snapshot:
+                                log_change('MainJobOperation', 'bulk_delete', ops_snapshot)
+                        except Exception:
+                            pass
+                        main_job.operations.all().delete()
+                    # Create operations
+                    for operation_data in operations_data:
+                        MainJobOperation.objects.create(
+                            main_job=main_job,
+                            **operation_data
+                        )
             
             # Create daily reports
             for day, data in daily_data.items():
@@ -320,7 +337,23 @@ class WeeklyReportCreateSerializer(serializers.ModelSerializer):
                 
                 # Update operations
                 if operations_data:
-                    # Clear existing operations
+                    # Clear existing operations with audit snapshot
+                    try:
+                        from apps.core.audit import log_change
+                        ops_snapshot = [
+                            {
+                                'id': op.id,
+                                'main_job_id': op.main_job_id,
+                                'step_number': op.step_number,
+                                'operation_description': op.operation_description,
+                                'tools_used': op.tools_used,
+                            }
+                            for op in main_job.operations.all()
+                        ]
+                        if ops_snapshot:
+                            log_change('MainJobOperation', 'bulk_delete', ops_snapshot)
+                    except Exception:
+                        pass
                     main_job.operations.all().delete()
                     # Create new operations
                     for operation_data in operations_data:
