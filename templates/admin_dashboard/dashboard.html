@@ -1,0 +1,307 @@
+{% extends 'admin_dashboard/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Total Users</h6>
+                        <h2 class="mb-0">{{ total_users }}</h2>
+                        <small class="text-white-50">{{ active_users }} active</small>
+                    </div>
+                    <i class="fas fa-users fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card-secondary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Total Reports</h6>
+                        <h2 class="mb-0">{{ total_daily_reports }}</h2>
+                        <small class="text-white-50">{{ total_weekly_reports }} weekly</small>
+                    </div>
+                    <i class="fas fa-file-alt fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Companies</h6>
+                        <h2 class="mb-0">{{ total_companies }}</h2>
+                        <small class="text-white-50">{{ active_companies }} active</small>
+                    </div>
+                    <i class="fas fa-building fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">AI Tokens</h6>
+                        <h2 class="mb-0">{{ total_tokens_used|floatformat:0 }}</h2>
+                        <small class="text-white-50">This month: {{ tokens_this_month|floatformat:0 }}</small>
+                    </div>
+                    <i class="fas fa-brain fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Row -->
+<div class="row">
+    <!-- Recent Users -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="fas fa-user-plus"></i> Recent Users</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Program</th>
+                                <th>Joined</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in recent_users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                    <br><small class="text-muted">{{ user.email }}</small>
+                                </td>
+                                <td>
+                                    {% if user.profile.program %}
+                                        {{ user.profile.get_program_display }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No recent users</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Reports -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-file-alt"></i> Recent Reports</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Date</th>
+                                <th>Hours</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in recent_reports %}
+                            <tr>
+                                <td>
+                                    <strong>{{ report.student.get_full_name|default:report.student.username }}</strong>
+                                </td>
+                                <td>{{ report.date|date:"M d, Y" }}</td>
+                                <td>{{ report.hours_spent }}h</td>
+                                <td>
+                                    <span class="badge bg-info">Daily</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No recent reports</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <!-- Program Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Program Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="programChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Industry Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-industry"></i> Industry Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="industryChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Activity -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="fas fa-robot"></i> Recent AI Activity</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Content Type</th>
+                                <th>Tokens Used</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_ai_logs %}
+                            <tr>
+                                <td>
+                                    <strong>{{ log.user.get_full_name|default:log.user.username }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ log.enhancement_type|default:"-" }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ log.content_type|default:"-" }}</span>
+                                </td>
+                                <td>{{ log.tokens_consumed|default:0 }}</td>
+                                <td>{{ log.created_at|date:"M d, H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No recent AI activity</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Program Distribution Chart
+const programCtx = document.getElementById('programChart').getContext('2d');
+const programChart = new Chart(programCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [
+            {% for stat in program_stats %}
+                '{{ stat.program|default:"Unknown" }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for stat in program_stats %}
+                    {{ stat.count }},
+                {% endfor %}
+            ],
+            backgroundColor: [
+                '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Industry Distribution Chart
+const industryCtx = document.getElementById('industryChart').getContext('2d');
+const industryChart = new Chart(industryCtx, {
+    type: 'bar',
+    data: {
+        labels: [
+            {% for stat in industry_stats %}
+                '{{ stat.industry_type|default:"Unknown" }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Companies',
+            data: [
+                {% for stat in industry_stats %}
+                    {{ stat.count }},
+                {% endfor %}
+            ],
+            backgroundColor: '#667eea',
+            borderColor: '#764ba2',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

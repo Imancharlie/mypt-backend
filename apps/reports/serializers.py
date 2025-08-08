@@ -230,15 +230,15 @@ class WeeklyReportCreateSerializer(serializers.ModelSerializer):
                 
                 # Only update operations if operations_data is provided
                 if operations_data:
-                # Remove existing operations if updating main job
-                if not main_job_created:
-                    main_job.operations.all().delete()
-                # Create operations
-                for operation_data in operations_data:
-                    MainJobOperation.objects.create(
-                        main_job=main_job,
-                        **operation_data
-                    )
+                    # Remove existing operations if updating main job
+                    if not main_job_created:
+                        main_job.operations.all().delete()
+                    # Create operations
+                    for operation_data in operations_data:
+                        MainJobOperation.objects.create(
+                            main_job=main_job,
+                            **operation_data
+                        )
             
             # Create daily reports
             for day, data in daily_data.items():
@@ -253,7 +253,7 @@ class WeeklyReportCreateSerializer(serializers.ModelSerializer):
                 # Update or create daily report - use date as the unique identifier
                 try:
                     daily_report = DailyReport.objects.get(
-                    student=weekly_report.student,
+                        student=weekly_report.student,
                         date=report_date.date()
                     )
                     # Update existing daily report
@@ -342,7 +342,7 @@ class WeeklyReportCreateSerializer(serializers.ModelSerializer):
                 # Update or create daily report - use date as the unique identifier
                 try:
                     daily_report = DailyReport.objects.get(
-                    student=instance.student,
+                        student=instance.student,
                         date=report_date.date()
                     )
                     # Update existing daily report

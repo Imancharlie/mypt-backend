@@ -11,6 +11,8 @@ urlpatterns = [
     path('api/reports/', include('apps.reports.urls')),
     path('api/ai/', include('apps.ai_assist.urls')),
     path('api/export/', include('apps.exporter.urls')),
+    path('api/billing/', include('billings.urls')),
+    path('admin-dashboard/', include('apps.admin_dashboard.urls')),
 ]
 
 if settings.DEBUG:
