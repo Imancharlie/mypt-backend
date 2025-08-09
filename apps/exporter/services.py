@@ -6,6 +6,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -25,7 +26,15 @@ def export_weekly_report_pdf(weekly_report):
     from io import BytesIO
     
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    # Match typical DOCX defaults: 1 inch margins
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=inch,
+        rightMargin=inch,
+        topMargin=inch,
+        bottomMargin=inch,
+    )
     elements = []
     
     # Get styles
@@ -74,41 +83,73 @@ def export_weekly_report_pdf(weekly_report):
     
     # Daily Reports Table - No "Weekly Work Summary" heading
     if daily_reports.exists():
-        # Table headers
-        daily_data = [['Day', 'Brief description of work performed', 'Hours']]
-        
+        # Build table rows with Paragraphs for proper wrapping
+        header_cell_style = ParagraphStyle(
+            'TableHeader', parent=styles['Normal'], fontSize=12, fontName='Times-Bold', leading=18
+        )
+        cell_style = ParagraphStyle(
+            'TableCell', parent=styles['Normal'], fontSize=12, fontName='Times-Roman', leading=18
+        )
+
         # Day mapping
         day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-        
+
+        # Compute dynamic column widths so Day/Hours are tight and Description takes the rest
+        available_width = doc.width  # points
+
+        day_texts = ['Day']
+        hours_texts = ['Hours', str(total_hours)]
         for i, report in enumerate(daily_reports):
             day_name = day_names[i] if i < len(day_names) else report.date.strftime('%A')
-            daily_data.append([
-                day_name,
-                report.description,
-                str(report.hours_spent)
+            day_texts.append(day_name)
+            hours_texts.append(str(report.hours_spent))
+
+        # Helper to compute minimal col width in points (content width + padding)
+        def min_col_width(texts, font_name='Times-Roman', font_size=12, side_padding_pts=12):
+            if not texts:
+                return 0
+            widest = max(stringWidth(str(t), font_name, font_size) for t in texts)
+            return widest + side_padding_pts
+
+        # Tight but readable columns; clamp to sensible bounds
+        day_col = min(max(min_col_width(day_texts, 'Times-Roman', 12), 0.7*inch), 1.5*inch)
+        hours_col = min(max(min_col_width(hours_texts, 'Times-Roman', 12), 0.6*inch), 1.2*inch)
+        description_col = max(available_width - day_col - hours_col, 2.5*inch)
+
+        data = [
+            [
+                Paragraph('Day', header_cell_style),
+                Paragraph('Brief description of work performed', header_cell_style),
+                Paragraph('Hours', header_cell_style),
+            ]
+        ]
+
+        for i, report in enumerate(daily_reports):
+            day_name = day_names[i] if i < len(day_names) else report.date.strftime('%A')
+            data.append([
+                Paragraph(day_name, cell_style),
+                Paragraph(report.description or '', cell_style),
+                Paragraph(str(report.hours_spent), cell_style),
             ])
-        
-        # Add total row
-        daily_data.append(['', 'Total hrs', str(total_hours)])
-        
-        # Create table with proper column widths and word wrapping
-        daily_table = Table(daily_data, colWidths=[1.5*inch, 4.5*inch, 1.0*inch])
+
+        # Total row
+        data.append([
+            Paragraph('', cell_style),
+            Paragraph('Total hrs', header_cell_style),
+            Paragraph(str(total_hours), header_cell_style),
+        ])
+
+        daily_table = Table(data, colWidths=[day_col, description_col, hours_col], repeatRows=1)
         daily_table.setStyle(TableStyle([
-            # Professional formatting
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-            ('FONTNAME', (0, -1), (-1, -1), 'Times-Bold'),  # Bold total row
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            # Add word wrapping for long text
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('WORDWRAP', (0, 0), (-1, -1), True),
-            # Row height for better spacing
-            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.white])
+            ('REPEATROWS', (0, 0), (-1, 0)),
         ]))
         elements.append(daily_table)
         elements.append(Spacer(1, 20))
@@ -149,23 +190,51 @@ def export_weekly_report_pdf(weekly_report):
             # If no operations exist, show empty table with just header
             operations_data.append(['', '', ''])
         
-        # Create operations table with proper word wrapping
-        operations_table = Table(operations_data, colWidths=[0.8*inch, 4.0*inch, 1.7*inch])
+        # Dynamically size columns so the Operation column gets the majority of width
+        available_width = doc.width
+
+        numbers = ['No'] + [str(op.step_number) for op in actual_operations]
+        tools_samples = ['Tools, Machinery, Equipment'] + [
+            (op.tools_used or '') for op in actual_operations
+        ]
+
+        no_col = min(max(min_col_width(numbers, 'Times-Roman', 12), 0.6*inch), 1.0*inch)
+        tools_col = min(max(min_col_width(tools_samples, 'Times-Roman', 12, side_padding_pts=12), 1.0*inch), 1.8*inch)
+        operation_col = max(available_width - no_col - tools_col, 3.0*inch)
+
+        # Convert operations_data text to Paragraphs
+        op_header = [
+            Paragraph('No', header_cell_style),
+            Paragraph('Operation', header_cell_style),
+            Paragraph('Tools, Machinery, Equipment', header_cell_style),
+        ]
+        data_ops = [op_header]
+
+        if actual_operations.exists():
+            for op in actual_operations:
+                data_ops.append([
+                    Paragraph(str(op.step_number), cell_style),
+                    Paragraph(op.operation_description or '', cell_style),
+                    Paragraph(op.tools_used or '', cell_style),
+                ])
+        else:
+            data_ops.append([
+                Paragraph('', cell_style),
+                Paragraph('', cell_style),
+                Paragraph('', cell_style),
+            ])
+
+        operations_table = Table(data_ops, colWidths=[no_col, operation_col, tools_col], repeatRows=1)
         operations_table.setStyle(TableStyle([
-            # Professional formatting
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            # Add word wrapping for long text
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('WORDWRAP', (0, 0), (-1, -1), True),
-            # Row height for better spacing
-            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.white])
+            ('REPEATROWS', (0, 0), (-1, 0)),
         ]))
         elements.append(operations_table)
         elements.append(Spacer(1, 30))
@@ -229,9 +298,14 @@ def export_weekly_report_docx(weekly_report):
     
     doc = Document()
     
-    # Set document font and spacing
+    # Set document margins to 1 inch to match PDF
     from docx.shared import Pt
     from docx.enum.text import WD_LINE_SPACING, WD_PARAGRAPH_ALIGNMENT
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1)
+        section.right_margin = Inches(1)
     
     # Title
     title = doc.add_heading('College of Engineering and Technology (CoET)', 0)
@@ -263,14 +337,35 @@ def export_weekly_report_docx(weekly_report):
     
     # Daily Reports Section - No "Weekly Work Summary" heading
     if daily_reports.exists():
-        # Create daily reports table with proper column widths
+        # Create daily reports table with dynamically computed column widths
         daily_table = doc.add_table(rows=1, cols=3)
         daily_table.style = 'Table Grid'
-        
-        # Set column widths
-        daily_table.columns[0].width = Inches(1.5)  # Day column (reduced)
-        daily_table.columns[1].width = Inches(4.5)  # Description column (increased)
-        daily_table.columns[2].width = Inches(1.0)  # Hours column (reduced)
+
+        # Compute available content width in inches
+        section = doc.sections[0]
+        # EMU per inch constant used by python-docx
+        EMU_PER_INCH = 914400
+        content_width_inches = (section.page_width - section.left_margin - section.right_margin) / EMU_PER_INCH
+
+        # Build datasets to estimate tight widths
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        days = ['Day'] + [
+            (day_names[i] if i < len(day_names) else r.date.strftime('%A'))
+            for i, r in enumerate(daily_reports)
+        ]
+        hours_values = ['Hours'] + [str(r.hours_spent) for r in daily_reports] + ['00']
+
+        # Approximate text width in inches for Times New Roman 12pt
+        def approx_inch_width(text: str, per_char=0.09, base_padding=0.3) -> float:
+            return max(base_padding + len(str(text)) * per_char, 0.0)
+
+        day_col_in = min(max(max(approx_inch_width(t) for t in days), 0.7), 1.3)
+        hours_col_in = min(max(max(approx_inch_width(t) for t in hours_values), 0.6), 1.1)
+        description_col_in = max(content_width_inches - day_col_in - hours_col_in, 2.5)
+
+        daily_table.columns[0].width = Inches(day_col_in)
+        daily_table.columns[1].width = Inches(description_col_in)
+        daily_table.columns[2].width = Inches(hours_col_in)
         
         # Header
         header_row = daily_table.rows[0]
@@ -327,11 +422,21 @@ def export_weekly_report_docx(weekly_report):
         # Create operations table with proper column widths
         operations_table = doc.add_table(rows=1, cols=3)
         operations_table.style = 'Table Grid'
-        
-        # Set column widths for operations table
-        operations_table.columns[0].width = Inches(0.8)  # No column (reduced)
-        operations_table.columns[1].width = Inches(4.0)  # Operation column (increased)
-        operations_table.columns[2].width = Inches(1.7)  # Tools column (reduced)
+
+        # Compute available width again
+        content_width_inches = (section.page_width - section.left_margin - section.right_margin) / EMU_PER_INCH
+
+        actual_operations = weekly_report.main_job.operations.all().order_by('step_number')
+        numbers = ['No'] + [str(op.step_number) for op in actual_operations]
+        tools_samples = ['Tools, Machinery, Equipment'] + [(op.tools_used or '') for op in actual_operations]
+
+        no_col_in = min(max(max(approx_inch_width(t) for t in numbers), 0.6), 1.0)
+        tools_col_in = min(max(max(approx_inch_width(t) for t in tools_samples), 1.0), 2.0)
+        operation_col_in = max(content_width_inches - no_col_in - tools_col_in, 3.0)
+
+        operations_table.columns[0].width = Inches(no_col_in)
+        operations_table.columns[1].width = Inches(operation_col_in)
+        operations_table.columns[2].width = Inches(tools_col_in)
         
         # Header
         header_row = operations_table.rows[0]

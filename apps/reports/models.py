@@ -193,3 +193,48 @@ class AIEnhancementLog(models.Model):
 
     def __str__(self):
         return f"Legacy AI Log - {self.user.username if self.user else 'No User'} - {self.enhancement_type or 'No Type'}"
+
+class OriginalUserInputs(models.Model):
+    """Store original user inputs before AI enhancement for potential reset."""
+    weekly_report = models.OneToOneField(WeeklyReport, on_delete=models.CASCADE, related_name='original_inputs')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='original_inputs', help_text="User who created the inputs")
+    week_number = models.IntegerField(help_text="Week number for easy identification")
+    original_main_job_title = models.CharField(max_length=200, blank=True, null=True)
+    original_daily_reports = models.JSONField(default=dict, help_text="Original daily reports data")
+    original_operations = models.JSONField(default=dict, help_text="Original operations data")
+    enhancement_instructions = models.TextField(blank=True, null=True, help_text="User's enhancement instructions")
+    is_reset_available = models.BooleanField(default=True, help_text="Whether user can reset to these original inputs")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'original_user_inputs'
+        verbose_name = 'Original User Inputs'
+        verbose_name_plural = 'Original User Inputs'
+        unique_together = ['user', 'week_number']
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Original inputs for {self.user.username} - Week {self.week_number}"
+    
+    def get_user_program(self):
+        """Get user's program for display."""
+        try:
+            return self.user.profile.get_program_display()
+        except:
+            return "Not specified"
+    
+    def get_company_name(self):
+        """Get user's company name for display."""
+        try:
+            return self.user.profile.company_name or "Not specified"
+        except:
+            return "Not specified"
+    
+    def get_daily_reports_count(self):
+        """Get count of daily reports."""
+        return len(self.original_daily_reports) if self.original_daily_reports else 0
+    
+    def get_operations_count(self):
+        """Get count of operations."""
+        return len(self.original_operations) if self.original_operations else 0

@@ -17,9 +17,11 @@ import os
 from django.conf import settings
 
 # Configure Anthropic Claude
-anthropic_client = anthropic.Anthropic(
-    api_key=os.getenv('ANTHROPIC_API_KEY', 'your-api-key-here')
-)
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+if ANTHROPIC_API_KEY and ANTHROPIC_API_KEY != 'your-api-key-here':
+    anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+else:
+    anthropic_client = None
 
 class DailyReportViewSet(viewsets.ModelViewSet):
     """ViewSet for daily reports."""
@@ -198,6 +200,9 @@ class WeeklyReportViewSet(viewsets.ModelViewSet):
             enhancement_data = self._prepare_enhancement_data(weekly_report)
             print(f"📊 Prepared enhancement data: {enhancement_data}")
             
+            # Save original inputs before enhancement
+            self._save_original_inputs(weekly_report, enhancement_data, additional_instructions)
+            
             # Call Claude API
             enhanced_data = self._enhance_with_claude(enhancement_data, additional_instructions)
             
@@ -232,10 +237,17 @@ class WeeklyReportViewSet(viewsets.ModelViewSet):
                     }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 print("❌ AI enhancement returned None")
-                return Response({
-                    'success': False,
-                    'message': 'Failed to enhance report with AI'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                if anthropic_client is None:
+                    return Response({
+                        'success': False,
+                        'message': 'AI enhancement not available - no valid API key configured. Please set ANTHROPIC_API_KEY environment variable.',
+                        'error_type': 'missing_api_key'
+                    }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                else:
+                    return Response({
+                        'success': False,
+                        'message': 'Failed to enhance report with AI'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
         except Exception as e:
             print(f"💥 Error in enhance_by_week_number: {str(e)}")
@@ -268,6 +280,9 @@ class WeeklyReportViewSet(viewsets.ModelViewSet):
             enhancement_data = self._prepare_enhancement_data(weekly_report)
             print(f"📊 Prepared enhancement data: {enhancement_data}")
             
+            # Save original inputs before enhancement
+            self._save_original_inputs(weekly_report, enhancement_data, additional_instructions)
+            
             # Call Claude API
             enhanced_data = self._enhance_with_claude(enhancement_data, additional_instructions)
             
@@ -302,10 +317,17 @@ class WeeklyReportViewSet(viewsets.ModelViewSet):
                     }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 print("❌ AI enhancement returned None")
-                return Response({
-                    'success': False,
-                    'message': 'Failed to enhance report with AI'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                if anthropic_client is None:
+                    return Response({
+                        'success': False,
+                        'message': 'AI enhancement not available - no valid API key configured. Please set ANTHROPIC_API_KEY environment variable.',
+                        'error_type': 'missing_api_key'
+                    }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                else:
+                    return Response({
+                        'success': False,
+                        'message': 'Failed to enhance report with AI'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
         except Exception as e:
             print(f"💥 Error in enhance_with_ai: {str(e)}")
@@ -327,35 +349,58 @@ class WeeklyReportViewSet(viewsets.ModelViewSet):
         if main_job:
             operations = main_job.operations.all().order_by('step_number')
         
-        # Prepare daily data
+        # Get user profile data
+        user = weekly_report.student
+        user_program = ''
+        company_name = ''
+        
+        try:
+            profile = user.profile
+            user_program = profile.get_program_display() if profile.program else ''
+            company_name = profile.company_name or ''
+        except:
+            pass  # User might not have a profile
+        
+        # Prepare daily data with original user inputs
         daily_data = []
         for report in daily_reports:
             daily_data.append({
                 'day': report.date.strftime('%A'),  # Use 'date' instead of 'report_date'
                 'date': report.date.strftime('%Y-%m-%d'),
                 'description': report.description or '',
-                'hours_worked': float(report.hours_spent)  # Use 'hours_spent' instead of 'hours_worked'
+                'hours_worked': float(report.hours_spent),  # Use 'hours_spent' instead of 'hours_worked'
+                'original_hours': float(report.hours_spent),  # Preserve original hours
+                'original_description': report.description or ''  # Preserve original description
             })
         
-        # Prepare operations data
+        # Prepare operations data with original user inputs
         operations_data = []
         for operation in operations:
             operations_data.append({
                 'step_number': operation.step_number,
                 'operation_description': operation.operation_description or '',
-                'tools_used': operation.tools_used or ''
+                'tools_used': operation.tools_used or '',
+                'original_operation_description': operation.operation_description or '',
+                'original_tools_used': operation.tools_used or ''
             })
         
         return {
             'main_job_title': main_job.title if main_job else '',
             'daily_reports': daily_data,
             'operations': operations_data,
-            'week_number': weekly_report.week_number
+            'week_number': weekly_report.week_number,
+            'user_program': user_program,
+            'company_name': company_name
         }
     
     def _enhance_with_claude(self, data, additional_instructions):
         """Enhance data using Anthropic Claude API"""
         try:
+            # Check if Claude API is available
+            if anthropic_client is None:
+                print("❌ Claude API not available - no valid API key provided")
+                return None
+            
             # Prepare prompt
             prompt = self._create_enhancement_prompt(data, additional_instructions)
             
@@ -411,112 +456,153 @@ class WeeklyReportViewSet(viewsets.ModelViewSet):
             operations_text += f"Tools: {op['tools_used']}\n\n"
         
         prompt = f"""
-You are an expert technical writer specializing in practical training reports. Your task is to enhance a weekly practical training report to make it more professional, technical, and comprehensive.
+You are a {data['user_program']} student at University of Dar es Salaam completing practical training at {data['company_name']}. Enhance this weekly report to make it more professional, technical, and comprehensive for Week {data['week_number']} of 8 while respecting the user's original inputs.
 
-CONTEXT:
-- Main Job Title: {data['main_job_title']}
-- Week Number: {data['week_number']}
-- This is for a practical training/internship report
+STUDENT CONTEXT:
+- Program: {data['user_program']} 
+- University: University of Dar es Salaam
+- Company: {data['company_name']}
+- Current Role: {data['main_job_title'] or 'Not specified - suggest based on daily work'}
 
-CURRENT DATA:
-{daily_text}
+ORIGINAL USER INPUTS:
+Daily Work: {daily_text}
+Main Tasks: {operations_text}
 
-CURRENT OPERATIONS:
-{operations_text}
+ENHANCEMENT GUIDELINES:
 
-ENHANCEMENT REQUIREMENTS:
+1. **RESPECT USER INPUTS**: Use the user's original hours, descriptions, and operations as your foundation. Enhance them to be more proffesional and technical report, don't completely replace them.
 
-1. DAILY DESCRIPTIONS:
-   - Convert any Swahili text to professional English
-   - Make each description 2-3 sentences long (50-80 words)
-   - Include specific technical details, tools used, and learning outcomes
-   - Focus on practical skills gained and tasks performed
-   - Use professional technical language
-   - Example good description: "Conducted detailed analysis of electrical circuit components using multimeter and oscilloscope. Successfully identified and resolved voltage regulation issues in the amplifier circuit. Gained hands-on experience with circuit troubleshooting and component testing procedures."
+2. **HOURS HANDLING**: 
+   - Use the exact hours the user provided for each day (see original_hours in data)
+   - If user didn't specify hours, use 5-9 hours range (prefer 6,7,8 hours dont use same to all days)
+   - Don't change hours unless user specifically requests it or it was empty
 
-2. OPERATIONS:
-   - Ensure at least 4 detailed operation steps
-   - Each step should be specific and actionable
-   - Include technical tools and equipment used
-   - Make steps sequential and logical
-   - Example good step: "Step 1: Set up the oscilloscope and connect probes to the circuit test points. Calibrate the instrument to measure voltage ranges between 0-12V DC."
+3. **MAIN JOB TITLE**:
+   - If user provided a title: Enhance it to be more specific and technical but only when it necessary 
+   - If user didn't provide title: Suggest one based on the most interesting/complex daily work from this week
+   - Prefer jobs that involve diagrams, technical processes, or hands-on work
+   - Look at the daily descriptions to identify the main focus area,the main job
 
-3. MAIN JOB TITLE:
-   - Make it more specific and technical
-   - Include the main focus area
+4. **OPERATIONS**:
+   - If user provided operations: Enhance each step while keeping their original approach
+   - If user didn't provide operations: Create 4-5 steps based on the main job title
+   - Don't force exactly 4 steps - match the complexity of the actual work
+   - make sure be systematic and sequetial,elaborate clearly each steps 
 
-ADDITIONAL INSTRUCTIONS: {additional_instructions}
+5. **DAILY DESCRIPTIONS**:
+   - Enhance user's original descriptions (2-3 sentences, 50-80 words)
+   - Keep their main activities and learning points
+   - Add technical details, tools used, and learning outcomes
+   - Example good description: "Conducted detailed analysis of electrical circuit components using multimeter and oscilloscope. Successfully identified and resolved voltage regulation issues in the amplifier circuit.
 
-CRITICAL: Return ONLY a valid JSON object in this EXACT format:
+6. **USER INSTRUCTIONS**: {additional_instructions}
+   - Follow any specific language, length, or style requests if stated 
+   - Respect any tools, hours, or approach preferences
+   - Use any provided examples as reference for writing style
+
+WRITING STYLE:
+- Write as a genuine student would but technical
+- Ensure all descriptions are professional and technical 
+- Show progressive skill development
+- Mix technical terms with everyday language
+- Make it more specific and technical but not robotic generated
+- Use proper technical terminology
+Return only this JSON format:
+
 {{
-    "main_job_title": "Enhanced specific technical job title",
+    "main_job_title": "Enhanced or suggested job title based on daily work",
     "daily_reports": [
         {{
             "day": "Monday",
-            "date": "2025-01-20",
-            "description": "Enhanced professional technical description (2-3 sentences, 50-80 words)",
-            "hours_worked": 8
+            "date": "2025-01-20", 
+            "description": "Enhanced description based on user's original input",
+            "hours_worked": "Use user's original hours, default to 8 if not specified"
         }},
         {{
-            "day": "Tuesday", 
+            "day": "Tuesday",
             "date": "2025-01-21",
-            "description": "Enhanced professional technical description (2-3 sentences, 50-80 words)",
-            "hours_worked": 8
+            "description": "Enhanced description based on user's original input", 
+            "hours_worked": "Use user's original hours, default to 8 if not specified"
         }},
         {{
-            "day": "Wednesday",
-            "date": "2025-01-22", 
-            "description": "Enhanced professional technical description (2-3 sentences, 50-80 words)",
-            "hours_worked": 8
+            "day": "Wednesday", 
+            "date": "2025-01-22",
+            "description": "Enhanced description based on user's original input",
+            "hours_worked": "Use user's original hours, default to 8 if not specified"
         }},
         {{
             "day": "Thursday",
-            "date": "2025-01-23",
-            "description": "Enhanced professional technical description (2-3 sentences, 50-80 words)", 
-            "hours_worked": 8
+            "date": "2025-01-23", 
+            "description": "Enhanced description based on user's original input",
+            "hours_worked": "Use user's original hours, default to 8 if not specified"
         }},
         {{
             "day": "Friday",
             "date": "2025-01-24",
-            "description": "Enhanced professional technical description (2-3 sentences, 50-80 words)",
-            "hours_worked": 8
+            "description": "Enhanced description based on user's original input",
+            "hours_worked": "Use user's original hours, default to 8 if not specified"
         }}
     ],
     "operations": [
         {{
             "step_number": 1,
-            "operation_description": "Detailed technical operation step with specific actions and procedures",
-            "tools_used": "Specific tools, equipment, and software used"
-        }},
-        {{
-            "step_number": 2,
-            "operation_description": "Detailed technical operation step with specific actions and procedures",
-            "tools_used": "Specific tools, equipment, and software used"
-        }},
-        {{
-            "step_number": 3,
-            "operation_description": "Detailed technical operation step with specific actions and procedures",
-            "tools_used": "Specific tools, equipment, and software used"
-        }},
-        {{
-            "step_number": 4,
-            "operation_description": "Detailed technical operation step with specific actions and procedures",
-            "tools_used": "Specific tools, equipment, and software used"
+            "operation_description": "Enhanced step based on user's original or created from daily work",
+            "tools_used": "Tools and equipment used"
         }}
+        // Add more steps as needed (4-6 total)
     ]
 }}
-
-IMPORTANT RULES:
-- Return ONLY the JSON object, no additional text
-- Ensure all descriptions are professional and technical
-- Include specific technical details and learning outcomes
-- Make descriptions informative but concise (2-3 sentences)
-- Ensure operations have at least 4 detailed steps
-- Use proper technical terminology
-- Maintain accuracy to the original content while enhancing it
 """
 
         return prompt
+    
+    def _save_original_inputs(self, weekly_report, data, additional_instructions):
+        """Save original user inputs before enhancement for potential reset."""
+        try:
+            from apps.reports.models import OriginalUserInputs
+            
+            # Prepare original data for storage
+            original_daily_reports = []
+            for daily in data.get('daily_reports', []):
+                original_daily_reports.append({
+                    'day': daily.get('day'),
+                    'date': daily.get('date'),
+                    'description': daily.get('original_description', daily.get('description', '')),
+                    'hours_worked': daily.get('original_hours', daily.get('hours_worked', 0))
+                })
+            
+            original_operations = []
+            for op in data.get('operations', []):
+                original_operations.append({
+                    'step_number': op.get('step_number'),
+                    'operation_description': op.get('original_operation_description', op.get('operation_description', '')),
+                    'tools_used': op.get('original_tools_used', op.get('tools_used', ''))
+                })
+            
+            # Create or update original inputs record
+            original_inputs, created = OriginalUserInputs.objects.get_or_create(
+                weekly_report=weekly_report,
+                defaults={
+                    'original_main_job_title': data.get('main_job_title', ''),
+                    'original_daily_reports': original_daily_reports,
+                    'original_operations': original_operations,
+                    'enhancement_instructions': additional_instructions
+                }
+            )
+            
+            if not created:
+                # Update existing record
+                original_inputs.original_main_job_title = data.get('main_job_title', '')
+                original_inputs.original_daily_reports = original_daily_reports
+                original_inputs.original_operations = original_operations
+                original_inputs.enhancement_instructions = additional_instructions
+                original_inputs.save()
+            
+            print(f"💾 Saved original inputs for weekly report {weekly_report.id}")
+            
+        except Exception as e:
+            print(f"⚠️ Warning: Could not save original inputs: {str(e)}")
+            # Don't fail the enhancement if saving original inputs fails
 
     def _transform_enhanced_data(self, enhanced_data, weekly_report):
         """Transform enhanced data to match serializer format"""
@@ -630,6 +716,22 @@ class MainJobOperationsViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         """Delete operation."""
+        # Audit before deleting to prevent silent loss
+        try:
+            from apps.core.audit import log_change
+            log_change(
+                model_name='MainJobOperation',
+                action='delete',
+                payload={
+                    'id': instance.id,
+                    'main_job_id': instance.main_job_id,
+                    'step_number': instance.step_number,
+                    'operation_description': instance.operation_description,
+                    'tools_used': instance.tools_used,
+                }
+            )
+        except Exception:
+            pass
         instance.delete()
 
 

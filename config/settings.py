@@ -165,7 +165,7 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://192.168.239.150:3000,http://192.168.239.150:3001,http://0.0.0.0:8000,http://127.0.0.1:8000').split(',')
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://192.168.239.150:3000,http://192.168.239.150:3001,http://0.0.0.0:8000,https://maipt.netlify.app').split(',')
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
