@@ -281,6 +281,50 @@ class TokenUsageViewSet(viewsets.ViewSet):
                 'required_tokens': token_cost
             }, status=status.HTTP_402_PAYMENT_REQUIRED)
     
+    @action(detail=False, methods=['post'])
+    def track_export(self, request):
+        """Track token usage for report export."""
+        weekly_report_id = request.data.get('weekly_report_id')
+        has_operations = request.data.get('has_operations', False)
+        
+        if not weekly_report_id:
+            return Response({
+                'success': False,
+                'message': 'weekly_report_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get user balance
+        user_balance, created = UserBalance.objects.get_or_create(user=request.user)
+        
+        # Determine token cost based on whether report has operations
+        token_cost = 100 if has_operations else 50
+        
+        # Check if user has enough tokens
+        if user_balance.available_tokens < token_cost:
+            return Response({
+                'success': False,
+                'message': f'Insufficient tokens for export. Required: {token_cost}, Available: {user_balance.available_tokens}',
+                'available_tokens': user_balance.available_tokens,
+                'required_tokens': token_cost
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
+        
+        # Deduct tokens
+        if user_balance.deduct_tokens(token_cost):
+            return Response({
+                'success': True,
+                'message': f'Export successful. {token_cost} tokens deducted.',
+                'remaining_tokens': user_balance.available_tokens,
+                'tokens_deducted': token_cost,
+                'has_operations': has_operations
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': 'Failed to deduct tokens.',
+                'available_tokens': user_balance.available_tokens,
+                'required_tokens': token_cost
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
+    
     @action(detail=False, methods=['get'])
     def usage_history(self, request):
         """Get user's token usage history."""

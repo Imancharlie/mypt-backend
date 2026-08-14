@@ -55,8 +55,8 @@ class UserBalance(models.Model):
         self.save()
     
     def calculate_tokens_from_amount(self, amount):
-        """Calculate tokens based on payment amount: amount * (3/10)."""
-        return int(amount * Decimal('0.3'))
+        """Calculate tokens based on payment amount: amount * (5/10)."""
+        return int(amount * Decimal('0.5'))
 
 
 class Transaction(models.Model):
@@ -113,8 +113,8 @@ class Transaction(models.Model):
         return f"{self.user.username} - {self.amount} ({self.transaction_status})"
     
     def calculate_tokens(self):
-        """Calculate tokens based on amount: amount * (3/10)."""
-        return int(self.amount * Decimal('0.3'))
+        """Calculate tokens based on amount: amount * (5/10)."""
+        return int(self.amount * Decimal('0.5'))
     
     def approve_transaction(self, confirmed_by_user):
         """Approve transaction and update user balance."""

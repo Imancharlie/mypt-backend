@@ -2,7 +2,7 @@
 
 ## Overview
 
-The billing system manages user token balances, payment transactions, and AI enhancement usage tracking. Users start with 400 free trial tokens and must subscribe to continue using AI enhancements.
+The billing system manages user token balances, payment transactions, and report export usage tracking. Users start with 400 free trial tokens and must purchase more tokens to export reports.
 
 ## Models
 
@@ -20,7 +20,7 @@ The billing system manages user token balances, payment transactions, and AI enh
 - **wakala_name**: Agent name (if using wakala)
 - **transaction_status**: PENDING, APPROVED, REJECTED
 - **amount**: Payment amount
-- **tokens_generated**: Tokens calculated (amount × 0.3)
+- **tokens_generated**: Tokens calculated (amount × 0.5)
 - **confirmed_by**: Staff member who approved
 - **created_at/updated_at**: Timestamps
 
@@ -141,7 +141,35 @@ POST /api/billing/staff/transactions/{transaction_id}/reject_transaction/
 
 ### 4. Token Usage Tracking
 
-#### Track AI Enhancement Usage
+#### Track Report Export
+```
+POST /api/billing/token-usage/track_export/
+```
+
+**Request Body:**
+```json
+{
+  "weekly_report_id": 1,
+  "has_operations": true
+}
+```
+
+**Token Costs:**
+- **Complete report (has operations)**: 100 tokens
+- **Incomplete report (no operations)**: 50 tokens
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Export successful. 100 tokens deducted.",
+  "remaining_tokens": 300,
+  "tokens_deducted": 100,
+  "has_operations": true
+}
+```
+
+#### Track AI Enhancement Usage (Legacy)
 ```
 POST /api/billing/token-usage/track_usage/
 ```
@@ -217,8 +245,10 @@ GET /api/billing/dashboard/payment_info/
       "Submit transaction details after payment",
       "Wait for staff approval"
     ],
-    "token_calculation": "Tokens = Amount × 0.3",
+    "token_calculation": "Tokens = Amount × 0.5",
     "usage_costs": {
+      "complete_export": "100 tokens (report with operations)",
+      "incomplete_export": "50 tokens (report without operations)",
       "fullfilled": "300 tokens (5 days filled)",
       "partial": "400 tokens (3-4 days filled)",
       "empty": "500 tokens (less than 3 days)"
@@ -230,8 +260,9 @@ GET /api/billing/dashboard/payment_info/
 ## Business Logic
 
 ### Token Calculation
-- **Formula**: `Tokens = Amount × 0.3`
-- **Example**: 1000 TZS = 300 tokens
+- **Formula**: `Tokens = Amount × 0.5`
+- **Example**: 1000 TZS = 500 tokens
+- **Minimum payment**: 1000 TZS (500 tokens)
 
 ### Payment Flow
 1. User creates transaction with payment details
