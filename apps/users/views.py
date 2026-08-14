@@ -415,12 +415,14 @@ def dashboard_data(request):
 @permission_classes([permissions.AllowAny])
 def google_auth(request):
     """Authenticate user using Google Identity Services ID token."""
-    id_token = request.data.get('id_token')
+    # Try to get token from query parameter first, then from body
+    id_token = request.query_params.get('id_token') or request.data.get('id_token')
 
     print("=" * 60)
     print("🔍 GOOGLE AUTH DEBUG")
     print("=" * 60)
-    print(f"Request data keys: {request.data.keys()}")
+    print(f"Request data keys: {request.data.keys() if request.data else 'None'}")
+    print(f"Query params keys: {request.query_params.keys()}")
     print(f"ID token present: {bool(id_token)}")
     print(f"ID token length: {len(id_token) if id_token else 0}")
     print(f"ID token first 50 chars: {id_token[:50] if id_token else 'None'}")
@@ -545,6 +547,17 @@ def google_complete_registration(request):
     department = request.data.get('department', '')
     company_name = request.data.get('company_name', '')
     company_region = request.data.get('company_region', '')
+    first_name = request.data.get('first_name', '')
+    last_name = request.data.get('last_name', '')
+    picture = request.data.get('picture', '')
+    
+    # Handle empty string for year_of_study
+    if year_of_study == '' or year_of_study is None:
+        year_of_study = None
+    
+    # Handle empty string for student_id to avoid unique constraint violation
+    if student_id == '' or student_id is None:
+        student_id = None
     
     # Derive department from program if not provided
     if not department and program:
@@ -587,15 +600,17 @@ def google_complete_registration(request):
             username = f"{base_username}{counter}"
             counter += 1
         
-        # Create user
+        # Create user with Google data
         user = User.objects.create_user(
             username=username,
             email=email,
             password=password,
+            first_name=first_name,
+            last_name=last_name,
             is_active=True
         )
         
-        # Create or update profile
+        # Create or update profile with Google data
         from apps.users.models import UserProfile
         profile, created = UserProfile.objects.get_or_create(user=user)
         profile.phone_number = phone_number
@@ -606,6 +621,7 @@ def google_complete_registration(request):
         profile.department = department
         profile.company_name = company_name
         profile.company_region = company_region
+        profile.picture = picture  # Save Google profile picture
         profile.save()
         
         # Generate JWT tokens
