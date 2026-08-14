@@ -3,10 +3,18 @@ from .models import DailyReport, WeeklyReport, MainJob, MainJobOperation
 from datetime import date, timedelta
 from django.utils import timezone
 
-def get_week_range(week_number, year=2025):
+def get_week_range(week_number, year=None):
     """Calculate the start and end date for a given week number.
-    Week 1 starts July 21, 2025 (Monday)"""
-    first_monday = date(2025, 7, 21)
+    By default the year is the current year. The training calendar start
+    is assumed to be July 21 for the supplied year unless an alternative
+    mechanism is provided elsewhere.
+    Week runs Monday -> Friday."""
+    if year is None:
+        year = timezone.now().year
+
+    # Default training start: July 21 of the supplied year. This keeps
+    # behaviour predictable while removing a hardcoded 2025 value.
+    first_monday = date(year, 7, 21)
     start_date = first_monday + timedelta(weeks=week_number - 1)
     end_date = start_date + timedelta(days=4)  # Monday to Friday
     return start_date, end_date
@@ -44,13 +52,8 @@ class DailyReportSerializer(serializers.ModelSerializer):
         week_number = data.get('week_number')
         report_date = data.get('date')
         
-        if week_number and report_date:
-            # For now, allow any date in 2025 to be more flexible
-            # The frontend can handle the week calculation
-            if report_date.year != 2025:
-                raise serializers.ValidationError(
-                    f"Date {report_date} must be in 2025."
-                )
+        # No strict year validation here; rely on `validate_date` for
+        # future-date checks and higher-level logic for week->date mapping.
         return data
 
     def create(self, validated_data):
@@ -230,15 +233,15 @@ class WeeklyReportCreateSerializer(serializers.ModelSerializer):
                 
                 # Only update operations if operations_data is provided
                 if operations_data:
-                # Remove existing operations if updating main job
-                if not main_job_created:
-                    main_job.operations.all().delete()
-                # Create operations
-                for operation_data in operations_data:
-                    MainJobOperation.objects.create(
-                        main_job=main_job,
-                        **operation_data
-                    )
+                    # Remove existing operations if updating main job
+                    if not main_job_created:
+                        main_job.operations.all().delete()
+                    # Create operations
+                    for operation_data in operations_data:
+                        MainJobOperation.objects.create(
+                            main_job=main_job,
+                            **operation_data
+                        )
             
             # Create daily reports
             for day, data in daily_data.items():

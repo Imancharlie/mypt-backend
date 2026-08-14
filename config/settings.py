@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -145,7 +146,15 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
         'rest_framework.parsers.FormParser',
     ],
+    'DATA_UPLOAD_MAX_MEMORY_SIZE': 10485760,  # 10MB
+    'MAX_UPLOAD_SIZE': 10485760,  # 10MB
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
 }
+
+# Django data upload settings
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 
 # JWT Configuration
 SIMPLE_JWT = {
@@ -170,7 +179,19 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # Additional CORS settings for mobile access
-CORS_ALLOW_ALL_HEADERS = True
+# Allow default headers plus custom headers used by the frontend (e.g. x-request-nonce, x-device-screen)
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-request-nonce',
+    'x-device-screen',
+    'x-device-useragent',
+    'x-device-fingerprint',
+    'x-device-fingerprint-confidence',
+    'x-device-locale',
+    'x-device-platform',
+    'x-device-timezone',
+]
+
+# Expose all headers to the browser if needed
 CORS_EXPOSE_HEADERS = ['*']
 
 # Security Settings
@@ -193,6 +214,14 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'no-reply@localhost')
+
+# A secret, server-only code for support staff to activate an account when a
+# user cannot use their activation email. Leave it empty unless needed.
+ADMIN_ACTIVATION_CODE = config('ADMIN_ACTIVATION_CODE', default='')
+
+# Frontend URL for activation links
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
 # Logging Configuration
 LOGGING = {

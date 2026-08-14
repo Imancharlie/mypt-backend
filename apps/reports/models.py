@@ -2,8 +2,45 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import calendar
+
+# Training calendar configuration - must match frontend
+TRAINING_START_BY_YEAR = {
+    2026: {'month': 7, 'day': 3},  # Monday, August 3, 2026 (months are 0-based)
+}
+TOTAL_WEEKS = 8
+
+def get_week_dates(week_number: int, year: int) -> dict:
+    """Calculate start (Monday) and end (Friday) dates for a given week number."""
+    if week_number < 1 or week_number > TOTAL_WEEKS:
+        raise ValueError(f"week_number must be between 1 and {TOTAL_WEEKS}")
+
+    # Hard-coded week dates for 2026
+    week_date_ranges = {
+        1: {'start': '2026-08-03', 'end': '2026-08-07'},  # Week 1: 03/08/2026 – 07/08/2026
+        2: {'start': '2026-08-10', 'end': '2026-08-14'},  # Week 2: 10/08/2026 – 14/08/2026
+        3: {'start': '2026-08-17', 'end': '2026-08-21'},  # Week 3: 17/08/2026 – 21/08/2026
+        4: {'start': '2026-08-24', 'end': '2026-08-28'},  # Week 4: 24/08/2026 – 28/08/2026
+        5: {'start': '2026-08-31', 'end': '2026-09-04'},  # Week 5: 31/08/2026 – 04/09/2026
+        6: {'start': '2026-09-07', 'end': '2026-09-11'},  # Week 6: 07/09/2026 – 11/09/2026
+        7: {'start': '2026-09-14', 'end': '2026-09-18'},  # Week 7: 14/09/2026 – 18/09/2026
+        8: {'start': '2026-09-21', 'end': '2026-09-25'},  # Week 8: 21/09/2026 – 25/09/2026
+    }
+
+    dates = week_date_ranges.get(week_number)
+    if not dates:
+        raise ValueError(f"No dates configured for week {week_number}")
+
+    week_start = date.fromisoformat(dates['start'])
+    week_end = date.fromisoformat(dates['end'])
+
+    return {
+        'start_date': week_start,
+        'end_date': week_end,
+        'start_date_str': dates['start'],
+        'end_date_str': dates['end'],
+    }
 
 class DailyReport(models.Model):
     """Simplified daily report with only essential fields."""
@@ -108,9 +145,11 @@ class WeeklyReport(models.Model):
         if not daily_reports.exists():
             return None
 
-        # Calculate start and end dates
-        start_date = daily_reports.first().date
-        end_date = daily_reports.last().date
+        # Calculate start and end dates from training calendar
+        current_year = date.today().year
+        week_dates = get_week_dates(week_number, current_year)
+        start_date = week_dates['start_date']
+        end_date = week_dates['end_date']
 
         # Create or get weekly report
         weekly_report, created = cls.objects.get_or_create(
@@ -123,6 +162,11 @@ class WeeklyReport(models.Model):
                 'is_complete': False
             }
         )
+
+        # Always update dates to match training calendar
+        weekly_report.start_date = start_date
+        weekly_report.end_date = end_date
+        weekly_report.save()
 
         # Update completion status and total hours
         weekly_report.update_completion_status()

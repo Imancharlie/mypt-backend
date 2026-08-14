@@ -681,12 +681,22 @@ class MainJobOperationViewSet(viewsets.ModelViewSet):
 class MainJobOperationsViewSet(viewsets.ModelViewSet):
     """ViewSet for managing operations within a specific main job."""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         """Get operations for the specific main job."""
         main_job_id = self.kwargs.get('main_job_id')
         main_job = get_object_or_404(MainJob, id=main_job_id, weekly_report__student=self.request.user)
         return MainJobOperation.objects.filter(main_job=main_job).order_by('step_number')
+
+    def get_object(self):
+        """Get the specific operation for update/delete."""
+        queryset = self.get_queryset()
+        pk = self.kwargs.get('pk')
+        print(f"🔍 MainJobOperationsViewSet.get_object: main_job_id={self.kwargs.get('main_job_id')}, pk={pk}")
+        print(f"🔍 Queryset: {queryset}")
+        obj = get_object_or_404(queryset, pk=pk)
+        print(f"🔍 Found object: {obj}")
+        return obj
 
     def get_serializer_class(self):
         """Use different serializers for different actions."""

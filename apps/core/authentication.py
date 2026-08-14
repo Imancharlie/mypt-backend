@@ -14,9 +14,5 @@ class CustomJWTAuthentication(JWTAuthentication):
 
         validated_token = self.get_validated_token(raw_token)
         user = self.get_user(validated_token)
-        
-        # Additional security checks
-        if not user.is_active:
-            raise InvalidToken('User account is disabled.')
-            
+
         return (user, validated_token) 

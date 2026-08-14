@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 
 class UserProfile(models.Model):
@@ -49,4 +50,26 @@ class UserProfile(models.Model):
         return dict(self.PROGRAM_CHOICES).get(self.program, self.program)
     
     def get_pt_phase_display(self):
-        return dict(self.PT_PHASE_CHOICES).get(self.pt_phase, self.pt_phase) 
+        return dict(self.PT_PHASE_CHOICES).get(self.pt_phase, self.pt_phase)
+
+
+class EmailVerificationOTP(models.Model):
+    """Stores 6-digit OTP codes for email verification."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps')
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'email_verification_otps'
+        verbose_name = 'Email Verification OTP'
+        verbose_name_plural = 'Email Verification OTPs'
+        ordering = ['-created_at']
+
+    def is_valid(self):
+        """Check if OTP is still valid (not expired and not used)."""
+        return not self.is_used and timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f"OTP for {self.user.email} - {self.code}" 
