@@ -1,0 +1,33 @@
+# Core Django and Web Server
+Django==4.2.7
+djangorestframework==3.16.0
+djangorestframework-simplejwt==5.3.0
+django-cors-headers==4.3.1
+gunicorn==21.2.0
+whitenoise==6.6.0
+python-decouple==3.8
+
+# Authentication and Security
+PyJWT==2.10.1
+
+# Database and Time
+pytz==2025.2
+tzdata==2025.2
+sqlparse==0.5.3
+
+# AI Features (Anthropic)
+anthropic==0.60.0
+httpx==0.28.1
+pydantic==2.11.7
+
+# PDF/Word Report Generation
+python-docx==0.8.11
+reportlab==4.4.3
+lxml==6.0.0
+
+# API and HTTP
+requests==2.32.4
+
+# DRF Extensions (only if used)
+django-filter==23.3
+drf-nested-routers==0.94.2

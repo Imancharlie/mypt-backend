@@ -20,6 +20,28 @@ def export_weekly_report_pdf_view(request, weekly_report_id):
             'message': 'Weekly report not found'
         }, status=404)
     
+    # Check user's token balance
+    try:
+        from billings.models import UserBalance
+        user_balance = UserBalance.objects.get(user=request.user)
+        if user_balance.available_tokens <= 0:
+            # Send SMS notification for zero token export attempt
+            try:
+                from apps.users.sms_service import send_zero_token_sms
+                user_name = request.user.get_full_name() or request.user.username
+                send_zero_token_sms(request.user.email, user_name)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send zero token SMS: {str(e)}")
+            
+            return Response({
+                'success': False,
+                'message': 'Insufficient tokens. Please purchase tokens to export reports.'
+            }, status=403)
+    except UserBalance.DoesNotExist:
+        pass  # If no balance record, proceed with export
+    
     try:
         pdf_content = export_weekly_report_pdf(weekly_report)
         response = HttpResponse(pdf_content, content_type='application/pdf')

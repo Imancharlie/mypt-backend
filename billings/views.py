@@ -57,6 +57,19 @@ class TransactionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             transaction = serializer.save()
+            
+            # Send SMS notification for transaction submission
+            try:
+                from apps.users.sms_service import send_transaction_sms
+                user_name = request.user.get_full_name() or request.user.username
+                amount = str(transaction.amount)
+                payment_method = transaction.get_payment_method_display()
+                send_transaction_sms(request.user.email, user_name, amount, payment_method)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send transaction SMS: {str(e)}")
+            
             return Response({
                 'success': True,
                 'message': 'Transaction created successfully. Please wait for approval.',

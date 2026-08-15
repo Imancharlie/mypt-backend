@@ -126,6 +126,17 @@ class UserRegistrationView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
+        # Send SMS notification for new registration
+        try:
+            from .sms_service import send_registration_sms
+            user_name = user.get_full_name() or user.username
+            send_registration_sms(user.email, user_name)
+        except Exception as e:
+            # Log error but don't fail registration
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send registration SMS: {str(e)}")
+
         return Response({
             'success': True,
             'message': 'Account created successfully. You can now log in.',
