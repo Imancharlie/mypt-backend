@@ -501,10 +501,18 @@ def google_auth(request):
             if not user.is_active:
                 user.is_active = True
                 user.save(update_fields=['is_active'])
-            
+
+            # Get user profile picture if available
+            profile_picture = ''
+            try:
+                profile = UserProfile.objects.get(user=user)
+                profile_picture = profile.picture or ''
+            except UserProfile.DoesNotExist:
+                pass
+
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
-            
+
             return Response({
                 'success': True,
                 'message': 'Authentication successful.',
@@ -515,7 +523,10 @@ def google_auth(request):
                         'id': user.id,
                         'username': user.username,
                         'email': user.email,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
                         'full_name': user.get_full_name(),
+                        'picture': profile_picture,
                     },
                     'is_new_user': False
                 }

@@ -37,7 +37,8 @@ def export_weekly_report_pdf_view(request, weekly_report_id):
             
             return Response({
                 'success': False,
-                'message': 'Insufficient tokens. Please purchase tokens to export reports.'
+                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'requires_tokens': True
             }, status=403)
     except UserBalance.DoesNotExist:
         pass  # If no balance record, proceed with export
