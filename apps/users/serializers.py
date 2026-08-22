@@ -51,6 +51,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def to_internal_value(self, data):
         """Convert display names to choice values before validation"""
+        # Handle display names for college field
+        if 'college' in data and data['college']:
+            college_mapping = {
+                'College of Engineering and Technology': 'CoET',
+                'CoET': 'CoET',
+                'College of Information and Communication Technologies': 'CoICT',
+                'CoICT': 'CoICT',
+                'School of Mining and Geosciences': 'SoMG',
+                'SoMG': 'SoMG',
+            }
+            if data['college'] in college_mapping:
+                data['college'] = college_mapping[data['college']]
+
         # Handle display names for program field
         if 'program' in data and data['program']:
             program_mapping = {
@@ -92,7 +105,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             }
             if data['program'] in program_mapping:
                 data['program'] = program_mapping[data['program']]
-        
+
         # Handle display names for pt_phase field
         if 'pt_phase' in data and data['pt_phase']:
             phase_mapping = {
@@ -102,16 +115,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             }
             if data['pt_phase'] in phase_mapping:
                 data['pt_phase'] = phase_mapping[data['pt_phase']]
-        
+
         # Handle empty strings for numeric fields
         if 'year_of_study' in data and (data['year_of_study'] == '' or data['year_of_study'] == 'null'):
             data['year_of_study'] = None
-        
+
         # Handle null values for string fields
         for field in ['student_id', 'department', 'supervisor_name', 'supervisor_email', 'phone_number', 'company_name', 'company_region']:
             if field in data and data[field] is None:
                 data[field] = ''
-        
+
         return super().to_internal_value(data)
     
     def validate(self, attrs):

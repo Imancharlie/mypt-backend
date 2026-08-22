@@ -18,7 +18,7 @@ import random
 import logging
 import requests
 from .serializers import UserRegistrationSerializer, UserProfileSerializer, UserSerializer
-from .models import EmailVerificationOTP
+from .models import EmailVerificationOTP, UserProfile
 
 
 logger = logging.getLogger(__name__)
@@ -305,7 +305,7 @@ def activate_with_admin_code(request):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_object(self):
         user = self.request.user
         try:
@@ -314,6 +314,94 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
             # Create a profile for the user if it doesn't exist
             from apps.users.models import UserProfile
             return UserProfile.objects.create(user=user)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def upload_profile_picture(request):
+    """Upload profile picture for authenticated user."""
+    try:
+        user = request.user
+        profile = user.profile
+
+        if 'profile_picture' not in request.FILES:
+            return Response({
+                'success': False,
+                'message': 'No profile picture file provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        profile_picture = request.FILES['profile_picture']
+
+        # Validate file size (max 5MB)
+        if profile_picture.size > 5 * 1024 * 1024:
+            return Response({
+                'success': False,
+                'message': 'Profile picture size must be less than 5MB'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif']
+        if profile_picture.content_type not in allowed_types:
+            return Response({
+                'success': False,
+                'message': 'Only JPEG, PNG, and GIF images are allowed'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Delete old profile picture if exists
+        if profile.profile_picture:
+            profile.profile_picture.delete(save=False)
+
+        # Save new profile picture
+        profile.profile_picture = profile_picture
+        profile.save()
+
+        # Get the URL of the uploaded image
+        profile_picture_url = profile.profile_picture.url if profile.profile_picture else None
+
+        return Response({
+            'success': True,
+            'message': 'Profile picture uploaded successfully',
+            'profile_picture_url': profile_picture_url
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error uploading profile picture: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'Failed to upload profile picture. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+def remove_profile_picture(request):
+    """Remove profile picture for authenticated user."""
+    try:
+        user = request.user
+        profile = user.profile
+
+        if not profile.profile_picture:
+            return Response({
+                'success': False,
+                'message': 'No profile picture to remove'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Delete profile picture
+        profile.profile_picture.delete(save=False)
+        profile.profile_picture = None
+        profile.save()
+
+        return Response({
+            'success': True,
+            'message': 'Profile picture removed successfully'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error removing profile picture: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'Failed to remove profile picture. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -502,13 +590,14 @@ def google_auth(request):
                 user.is_active = True
                 user.save(update_fields=['is_active'])
 
-            # Get user profile picture if available
-            profile_picture = ''
-            try:
-                profile = UserProfile.objects.get(user=user)
-                profile_picture = profile.picture or ''
-            except UserProfile.DoesNotExist:
-                pass
+            # Get profile picture from Google token info, or generate initials
+            profile_picture = token_info.get('picture', '')
+            if not profile_picture:
+                # Generate initials from user's name
+                first_name = user.first_name or ''
+                last_name = user.last_name or ''
+                initials = f"{first_name[0] if first_name else ''}{last_name[0] if last_name else ''}".upper()
+                profile_picture = initials
 
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
@@ -533,6 +622,15 @@ def google_auth(request):
             })
         else:
             # New user - return user data for registration
+            first_name = token_info.get('given_name', '')
+            last_name = token_info.get('family_name', '')
+            picture = token_info.get('picture', '')
+
+            # Generate initials if no picture
+            if not picture:
+                initials = f"{first_name[0] if first_name else ''}{last_name[0] if last_name else ''}".upper()
+                picture = initials
+
             return Response({
                 'success': True,
                 'message': 'New user detected. Please complete registration.',
@@ -540,10 +638,10 @@ def google_auth(request):
                     'is_new_user': True,
                     'user': {
                         'email': email,
-                        'first_name': token_info.get('given_name', ''),
-                        'last_name': token_info.get('family_name', ''),
-                        'full_name': f"{token_info.get('given_name', '')} {token_info.get('family_name', '')}".strip(),
-                        'picture': token_info.get('picture', ''),
+                        'first_name': first_name,
+                        'last_name': last_name,
+                        'full_name': f"{first_name} {last_name}".strip(),
+                        'picture': picture,
                     }
                 }
             })

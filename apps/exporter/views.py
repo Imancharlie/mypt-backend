@@ -6,6 +6,9 @@ from .services import export_weekly_report_pdf, export_weekly_report_docx, expor
 from apps.reports.models import WeeklyReport, GeneralReport, DailyReport
 from apps.core.permissions import IsOwnerOrReadOnly
 from django.http import HttpResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -37,7 +40,7 @@ def export_weekly_report_pdf_view(request, weekly_report_id):
             
             return Response({
                 'success': False,
-                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'message': 'You dont have enough token. click token button ontop right side',
                 'requires_tokens': True
             }, status=403)
     except UserBalance.DoesNotExist:
@@ -49,9 +52,10 @@ def export_weekly_report_pdf_view(request, weekly_report_id):
         response['Content-Disposition'] = f'attachment; filename="weekly_report_{weekly_report.week_number}.pdf"'
         return response
     except Exception as e:
+        logger.error(f"Error generating PDF for weekly report {weekly_report_id}: {str(e)}")
         return Response({
             'success': False,
-            'message': f'Error generating PDF: {str(e)}'
+            'message': 'Unable to generate PDF report. Please try again or contact support if the issue persists.'
         }, status=500)
 
 
@@ -66,16 +70,40 @@ def export_weekly_report_docx_view(request, weekly_report_id):
             'success': False,
             'message': 'Weekly report not found'
         }, status=404)
-    
+
+    # Check user's token balance
+    try:
+        from billings.models import UserBalance
+        user_balance = UserBalance.objects.get(user=request.user)
+        if user_balance.available_tokens <= 0:
+            # Send SMS notification for zero token export attempt
+            try:
+                from apps.users.sms_service import send_zero_token_sms
+                user_name = request.user.get_full_name() or request.user.username
+                send_zero_token_sms(request.user.email, user_name)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send zero token SMS: {str(e)}")
+
+            return Response({
+                'success': False,
+                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'requires_tokens': True
+            }, status=403)
+    except UserBalance.DoesNotExist:
+        pass  # If no balance record, proceed with export
+
     try:
         docx_content = export_weekly_report_docx(weekly_report)
         response = HttpResponse(docx_content, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         response['Content-Disposition'] = f'attachment; filename="weekly_report_{weekly_report.week_number}.docx"'
         return response
     except Exception as e:
+        logger.error(f"Error generating DOCX for weekly report {weekly_report_id}: {str(e)}")
         return Response({
             'success': False,
-            'message': f'Error generating DOCX: {str(e)}'
+            'message': 'Unable to generate DOCX report. Please try again or contact support if the issue persists.'
         }, status=500)
 
 
@@ -90,7 +118,30 @@ def export_daily_report_pdf(request, daily_report_id):
             'success': False,
             'message': 'Daily report not found'
         }, status=404)
-    
+
+    # Check user's token balance
+    try:
+        from billings.models import UserBalance
+        user_balance = UserBalance.objects.get(user=request.user)
+        if user_balance.available_tokens <= 0:
+            # Send SMS notification for zero token export attempt
+            try:
+                from apps.users.sms_service import send_zero_token_sms
+                user_name = request.user.get_full_name() or request.user.username
+                send_zero_token_sms(request.user.email, user_name)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send zero token SMS: {str(e)}")
+
+            return Response({
+                'success': False,
+                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'requires_tokens': True
+            }, status=403)
+    except UserBalance.DoesNotExist:
+        pass  # If no balance record, proceed with export
+
     # For daily reports, we'll create a simple PDF
     from django.template.loader import render_to_string
     from weasyprint import HTML, CSS
@@ -162,7 +213,30 @@ def export_daily_report_docx(request, daily_report_id):
             'success': False,
             'message': 'Daily report not found'
         }, status=404)
-    
+
+    # Check user's token balance
+    try:
+        from billings.models import UserBalance
+        user_balance = UserBalance.objects.get(user=request.user)
+        if user_balance.available_tokens <= 0:
+            # Send SMS notification for zero token export attempt
+            try:
+                from apps.users.sms_service import send_zero_token_sms
+                user_name = request.user.get_full_name() or request.user.username
+                send_zero_token_sms(request.user.email, user_name)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send zero token SMS: {str(e)}")
+
+            return Response({
+                'success': False,
+                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'requires_tokens': True
+            }, status=403)
+    except UserBalance.DoesNotExist:
+        pass  # If no balance record, proceed with export
+
     from docx import Document
     from docx.shared import Inches
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -252,7 +326,30 @@ def export_general_report_pdf_view(request):
             'success': False,
             'message': 'General report not found'
         }, status=404)
-    
+
+    # Check user's token balance
+    try:
+        from billings.models import UserBalance
+        user_balance = UserBalance.objects.get(user=request.user)
+        if user_balance.available_tokens <= 0:
+            # Send SMS notification for zero token export attempt
+            try:
+                from apps.users.sms_service import send_zero_token_sms
+                user_name = request.user.get_full_name() or request.user.username
+                send_zero_token_sms(request.user.email, user_name)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send zero token SMS: {str(e)}")
+
+            return Response({
+                'success': False,
+                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'requires_tokens': True
+            }, status=403)
+    except UserBalance.DoesNotExist:
+        pass  # If no balance record, proceed with export
+
     try:
         pdf_content = export_general_report_pdf(general_report)
         response = HttpResponse(pdf_content, content_type='application/pdf')
@@ -276,7 +373,30 @@ def export_general_report_docx_view(request):
             'success': False,
             'message': 'General report not found'
         }, status=404)
-    
+
+    # Check user's token balance
+    try:
+        from billings.models import UserBalance
+        user_balance = UserBalance.objects.get(user=request.user)
+        if user_balance.available_tokens <= 0:
+            # Send SMS notification for zero token export attempt
+            try:
+                from apps.users.sms_service import send_zero_token_sms
+                user_name = request.user.get_full_name() or request.user.username
+                send_zero_token_sms(request.user.email, user_name)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send zero token SMS: {str(e)}")
+
+            return Response({
+                'success': False,
+                'message': 'You need tokens to export reports. Visit the billing page to get more tokens and unlock premium features.',
+                'requires_tokens': True
+            }, status=403)
+    except UserBalance.DoesNotExist:
+        pass  # If no balance record, proceed with export
+
     try:
         docx_content = export_general_report_docx(general_report)
         response = HttpResponse(docx_content, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
@@ -296,13 +416,13 @@ def bulk_export(request):
     report_ids = request.data.get('report_ids', [])
     export_type = request.data.get('type', 'pdf')  # pdf or docx
     report_type = request.data.get('report_type', 'weekly')  # daily, weekly, general
-    
+
     if not report_ids:
         return Response({
             'success': False,
             'message': 'Report IDs are required'
         }, status=400)
-    
+
     # This is a simplified bulk export - in a real implementation,
     # you might want to create a zip file with multiple reports
     if report_type == 'weekly':
@@ -323,8 +443,86 @@ def bulk_export(request):
                 'success': False,
                 'message': 'Weekly report not found'
             }, status=404)
-    
+
     return Response({
         'success': False,
         'message': 'Bulk export not implemented for this report type'
-    }, status=400) 
+    }, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def export_all_weekly_reports(request):
+    """Export all weekly reports as a combined PDF (logbook)"""
+    export_type = request.data.get('type', 'pdf')  # pdf or docx
+    force_export = request.data.get('force_export', False)  # Allow override for <4 reports
+
+    try:
+        from .services import export_all_weekly_reports_pdf, export_all_weekly_reports_docx
+        weekly_reports = WeeklyReport.objects.filter(student=request.user).order_by('week_number')
+
+        if not weekly_reports.exists():
+            return Response({
+                'success': False,
+                'message': 'No weekly reports found to export'
+            }, status=404)
+
+        report_count = weekly_reports.count()
+
+        # Check if user has at least 4 reports (unless force_export is True)
+        if report_count < 4 and not force_export:
+            return Response({
+                'success': False,
+                'message': f'Logbook export requires at least 4 weekly reports. You currently have {report_count} report(s). Please export individual weekly reports instead.',
+                'report_count': report_count,
+                'requires_more_reports': True
+            }, status=400)
+
+        # Calculate token cost: 100 tokens per report
+        token_cost = report_count * 100
+
+        # Check user's token balance
+        try:
+            from billings.models import UserBalance
+            user_balance = UserBalance.objects.get(user=request.user)
+            if user_balance.available_tokens < token_cost:
+                return Response({
+                    'success': False,
+                    'message': f'You need {token_cost} tokens to export {report_count} weekly reports as a logbook. You currently have {user_balance.available_tokens} tokens.',
+                    'token_cost': token_cost,
+                    'available_tokens': user_balance.available_tokens,
+                    'requires_tokens': True
+                }, status=403)
+        except UserBalance.DoesNotExist:
+            pass  # If no balance record, proceed with export
+
+        # Generate the export
+        if export_type == 'pdf':
+            pdf_content = export_all_weekly_reports_pdf(weekly_reports)
+            response = HttpResponse(pdf_content, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="logbook_all_weekly_reports.pdf"'
+        else:
+            docx_content = export_all_weekly_reports_docx(weekly_reports)
+            response = HttpResponse(docx_content, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = f'attachment; filename="logbook_all_weekly_reports.docx"'
+
+        # Deduct tokens after successful export
+        try:
+            from billings.models import UserBalance
+            user_balance = UserBalance.objects.get(user=request.user)
+            user_balance.deduct_tokens(token_cost)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Deducted {token_cost} tokens from user {request.user.username}")
+        except UserBalance.DoesNotExist:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"No user balance found for user {request.user.username}")
+
+        return response
+    except Exception as e:
+        logger.error(f"Error in export_all_weekly_reports: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'Unable to generate combined logbook report. Please ensure you have enough reports and try again, or contact support if the issue persists.'
+        }, status=500)
