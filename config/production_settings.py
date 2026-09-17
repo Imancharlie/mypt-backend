@@ -17,12 +17,10 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Production ALLOWED_HOSTS
-ALLOWED_HOSTS = [
-    'yourusername.pythonanywhere.com',  # Replace with your PythonAnywhere domain
-    'www.yourusername.pythonanywhere.com',
-    'localhost',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='mipt.kodin.co.tz,www.mipt.kodin.co.tz,localhost,127.0.0.1'
+).split(',')
 
 # Application definition
 DJANGO_APPS = [
@@ -44,11 +42,10 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     'apps.users',
-    'apps.companies',
     'apps.reports',
-    'apps.ai_assist',
     'apps.exporter',
     'apps.core',
+    'billings',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -119,9 +116,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
+# Only list 'static/' if the directory actually exists, otherwise
+# collectstatic raises ImproperlyConfigured.
+statics_dir = BASE_DIR / 'static'
+STATICFILES_DIRS = [statics_dir] if statics_dir.is_dir() else []
 
 # Media files
 MEDIA_URL = '/media/'
@@ -191,12 +189,6 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-
-# AI API Keys for Production
-ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
-OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4')
-OPENAI_MAX_TOKENS = config('OPENAI_MAX_TOKENS', default=2000, cast=int)
 
 # Production Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
