@@ -1,9 +1,11 @@
-from django.urls import path, include
+from django.urls import path, re_path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     DailyReportViewSet, WeeklyReportViewSet, 
     MainJobViewSet, MainJobOperationViewSet,
-    MainJobOperationsViewSet, MainJobDetailViewSet
+    MainJobOperationsViewSet, MainJobDetailViewSet,
+    ai_fetch_report_data, ai_save_enhanced_report,
+    weekly_ai_enhance, weekly_ai_answer, weekly_ai_history
 )
 
 router = DefaultRouter()
@@ -12,6 +14,10 @@ router.register(r'weekly', WeeklyReportViewSet, basename='weekly')
 router.register(r'main-jobs', MainJobViewSet, basename='main-job')
 
 urlpatterns = [
+    # AI enhancement proxy endpoints (slash optional for the frontend client)
+    re_path(r'^weekly/ai/enhance/?$', weekly_ai_enhance, name='weekly-ai-enhance'),
+    re_path(r'^weekly/ai/answer/?$', weekly_ai_answer, name='weekly-ai-answer'),
+    re_path(r'^weekly/ai/history/?$', weekly_ai_history, name='weekly-ai-history'),
     path('', include(router.urls)),
     # Custom endpoints for main job operations management
     path('main-jobs/<int:main_job_id>/operations/', MainJobOperationsViewSet.as_view({
@@ -30,4 +36,7 @@ urlpatterns = [
         'put': 'update',
         'patch': 'partial_update'
     }), name='main-job-detail'),
+    # AI service endpoints
+    path('ai/fetch-report-data/', ai_fetch_report_data, name='ai-fetch-report-data'),
+    path('ai/save-enhanced-report/', ai_save_enhanced_report, name='ai-save-enhanced-report'),
 ] 

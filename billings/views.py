@@ -296,21 +296,33 @@ class TokenUsageViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'])
     def track_export(self, request):
-        """Track token usage for report export."""
+        """Track token usage for report export.
+
+        Deprecated: exports are now charged directly by the export/download
+        endpoints (100 tokens normal, 200 tokens AI-enhanced). This action is
+        kept only for backward compatibility and mirrors the same pricing.
+        """
         weekly_report_id = request.data.get('weekly_report_id')
-        has_operations = request.data.get('has_operations', False)
-        
         if not weekly_report_id:
             return Response({
                 'success': False,
                 'message': 'weekly_report_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        report = WeeklyReport.objects.filter(
+            id=weekly_report_id, student=request.user
+        ).first()
+        if report is None:
+            return Response({
+                'success': False,
+                'message': 'Weekly report not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
         # Get user balance
         user_balance, created = UserBalance.objects.get_or_create(user=request.user)
-        
-        # Determine token cost based on whether report has operations
-        token_cost = 100 if has_operations else 50
+
+        # 200 tokens for AI-enhanced reports, 100 for normal reports
+        token_cost = 200 if getattr(report, 'is_ai_enhanced', False) else 100
         
         # Check if user has enough tokens
         if user_balance.available_tokens < token_cost:
@@ -328,7 +340,7 @@ class TokenUsageViewSet(viewsets.ViewSet):
                 'message': f'Export successful. {token_cost} tokens deducted.',
                 'remaining_tokens': user_balance.available_tokens,
                 'tokens_deducted': token_cost,
-                'has_operations': has_operations
+                'is_ai_enhanced': bool(getattr(report, 'is_ai_enhanced', False))
             })
         else:
             return Response({

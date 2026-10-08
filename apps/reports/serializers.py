@@ -132,9 +132,9 @@ class WeeklyReportSerializer(serializers.ModelSerializer):
         model = WeeklyReport
         fields = [
             'id', 'week_number', 'start_date', 'end_date',
-            'total_hours', 'daily_reports', 'main_job'
+            'total_hours', 'daily_reports', 'main_job', 'is_ai_enhanced'
         ]
-        read_only_fields = ['id', 'start_date', 'end_date', 'total_hours']
+        read_only_fields = ['id', 'start_date', 'end_date', 'total_hours', 'is_ai_enhanced']
 
     def validate_week_number(self, value):
         """Validate week number."""

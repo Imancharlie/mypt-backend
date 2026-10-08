@@ -11,4 +11,8 @@ urlpatterns = [
     path('general/pdf/', views.export_general_report_pdf_view, name='general-pdf'),
     path('general/docx/', views.export_general_report_docx_view, name='general-docx'),
     path('bulk/', views.bulk_export, name='bulk-export'),
-] 
+    path('all-weekly-reports/', views.export_all_weekly_reports, name='all-weekly-reports'),
+    # Diagram management endpoints
+    path('diagram/<int:weekly_report_id>/', views.DiagramManagementAPIView.as_view(), name='diagram-management'),
+    path('diagram/<int:weekly_report_id>/image/', views.DiagramImageAPIView.as_view(), name='diagram-image'),
+]

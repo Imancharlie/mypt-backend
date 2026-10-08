@@ -190,6 +190,23 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+# AI API Keys for Production
+ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4')
+OPENAI_MAX_TOKENS = config('OPENAI_MAX_TOKENS', default=2000, cast=int)
+
+# VPS AI Service Configuration
+VPS_AI_SERVICE_ENABLED = config('VPS_AI_SERVICE_ENABLED', default=True, cast=bool)
+VPS_AI_SERVICE_URL = config('VPS_AI_SERVICE_URL', default='http://localhost:8010')
+VPS_API_KEY = config('VPS_API_KEY', default='mipt-vps-secret-key-2024')
+VPS_REQUEST_TIMEOUT = config('VPS_REQUEST_TIMEOUT', default=60, cast=int)
+
+# Media enhancement settings
+MYPT_MEDIA_API_URL = config('MYPT_MEDIA_API_URL', default='')
+MYPT_MEDIA_API_KEY = config('MYPT_MEDIA_API_KEY', default='')
+MYPT_MEDIA_TIMEOUT = config('MYPT_MEDIA_TIMEOUT', default=30, cast=int)
+
 # Production Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')

@@ -102,6 +102,7 @@ class WeeklyReport(models.Model):
     end_date = models.DateField(help_text="End date (Friday)")
     total_hours = models.DecimalField(max_digits=6, decimal_places=1, default=0)
     is_complete = models.BooleanField(default=False, help_text="True if all 5 days have reports")
+    is_ai_enhanced = models.BooleanField(default=False, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -282,3 +283,69 @@ class OriginalUserInputs(models.Model):
     def get_operations_count(self):
         """Get count of operations."""
         return len(self.original_operations) if self.original_operations else 0
+
+
+class AiChatSession(models.Model):
+    """One AI assistant conversation thread per student and week."""
+
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_COMPLETE = 'complete'
+    STATUS_CHOICES = [
+        (STATUS_IN_PROGRESS, 'In progress'),
+        (STATUS_COMPLETE, 'Enhanced'),
+    ]
+
+    student = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='ai_chat_sessions'
+    )
+    week_number = models.IntegerField()
+    session_id = models.CharField(
+        max_length=64, blank=True, default='',
+        help_text="Session id on the AI service"
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_IN_PROGRESS
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ai_chat_sessions'
+        unique_together = ['student', 'week_number']
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"AI chat - Week {self.week_number} - {self.student.username} ({self.status})"
+
+
+class AiChatMessage(models.Model):
+    """A single chat message kept so the user can scroll back through it."""
+
+    ROLE_USER = 'user'
+    ROLE_ASSISTANT = 'assistant'
+    ROLE_CHOICES = [
+        (ROLE_USER, 'User'),
+        (ROLE_ASSISTANT, 'Assistant'),
+    ]
+
+    session = models.ForeignKey(
+        AiChatSession, on_delete=models.CASCADE, related_name='messages'
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField()
+    message_type = models.CharField(
+        max_length=20, default='text',
+        help_text="text | question | ready | complete | error"
+    )
+    is_pending = models.BooleanField(
+        default=False, help_text="Assistant message still waiting for a reply"
+    )
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ai_chat_messages'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.role}: {self.content[:40]}"

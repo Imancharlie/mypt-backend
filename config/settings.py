@@ -37,7 +37,6 @@ LOCAL_APPS = [
     'apps.users',
     'apps.companies',
     'apps.reports',
-    'apps.ai_assist',
     'apps.exporter',
     'apps.core',
     'apps.admin_dashboard',
@@ -264,4 +263,15 @@ LOGGING = {
 }
 
 # Create logs directory if it doesn't exist
-os.makedirs(BASE_DIR / 'logs', exist_ok=True) 
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
+# VPS AI Service Configuration
+VPS_AI_SERVICE_ENABLED = config('VPS_AI_SERVICE_ENABLED', default=True, cast=bool)
+VPS_AI_SERVICE_URL = config('VPS_AI_SERVICE_URL', default='http://localhost:8010')
+VPS_API_KEY = config('VPS_API_KEY', default='mipt-vps-secret-key-2024')
+VPS_REQUEST_TIMEOUT = config('VPS_REQUEST_TIMEOUT', default=60, cast=int) 
+
+# Media enhancement settings
+MYPT_MEDIA_API_URL = config('MYPT_MEDIA_API_URL', default='')
+MYPT_MEDIA_API_KEY = config('MYPT_MEDIA_API_KEY', default='')
+MYPT_MEDIA_TIMEOUT = config('MYPT_MEDIA_TIMEOUT', default=30, cast=int)
